@@ -10,17 +10,15 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             
-            // OPTIMIZATION: 'login_id' stores Student ID for students OR Email for Responders/Admins.
-            // We use a unique index here for fast login lookups.
+            // OPTIMIZATION: 'login_id' stores student_id or email
             $table->string('login_id')->unique(); 
             
             $table->string('password');
             
             // DE-NORMALIZATION: Storing Name and Phone here avoids JOINs during emergency alerts.
             $table->string('name'); 
-            $table->string('phone_number')->nullable(); // Nullable because Admin might not need it.
-            
-            // INDEX: Indexing 'role' speeds up queries like "Get all Responders".
+            $table->string('phone_number')->nullable();
+            $table->enum('status', ['active', 'inactive', 'banned'])->default('active');
             $table->enum('role', ['admin', 'student', 'responder'])->index();
             
             $table->rememberToken();

@@ -13,42 +13,36 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminUserController extends Controller
 {
-    /**
-     * READ: Get list of users (Filtered by Role)
-     * Optimization: Uses Eager Loading 'with()' to fetch profile details in 1 query.
-     */
+ 
+     //READ: Get list of users (Filtered by Role)
     public function index(Request $request)
     {
-        // Allow filtering by role (e.g., ?role=student)
+        //filtering by role
         $role = $request->query('role');
 
         $query = User::query();
 
         if ($role) {
-            $query->where('role', $role); // Uses the 'role' INDEX
+            $query->where('role', $role); 
         } else {
-            // If no filter, don't show other admins, just students/responders
             $query->whereIn('role', ['student', 'responder']);
         }
 
-        // Optimization: Eager Load relationships to avoid N+1 query performance issues
+        // Optimization: Eager Load relationships
         $users = $query->with(['studentDetails', 'responderDetails'])
                        ->orderBy('created_at', 'desc')
-                       ->paginate(15); // Use Pagination for large datasets
+                       ->paginate(15); 
 
         return response()->json($users);
     }
 
-    /**
-     * CREATE: Add a new Student or Responder
-     * Logic: Identical to Register, but wrapped in DB Transaction for safety.
-     */
+     //CREATE: Add a new Student or Responder
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'type'         => 'required|in:student,responder', // Admin can't create other Admins via this API usually
+            'type'         => 'required|in:student,responder',
             'name'         => 'required|string|max:255',
-            'password'     => 'required|min:8', // No confirmation needed for Admin entry usually
+            'password'     => 'required|min:8',
             'phone_number' => 'nullable|string|max:20',
             
             // Conditional Validation
@@ -61,6 +55,7 @@ class AdminUserController extends Controller
             'position'     => 'nullable|required_if:type,responder|string',
         ]);
 
+        //Transaction
         return DB::transaction(function () use ($validated) {
             $loginId = $validated['type'] === 'student' ? $validated['student_id'] : $validated['email'];
 
@@ -91,19 +86,15 @@ class AdminUserController extends Controller
         });
     }
 
-    /**
-     * SHOW: Get single user details
-     */
+     //SHOW: Get single user details
     public function show($id)
     {
         $user = User::with(['studentDetails', 'responderDetails'])->findOrFail($id);
         return response()->json($user);
     }
 
-    /**
-     * UPDATE: Edit User and their Profile
-     * Logic: Updates main table, then checks role to update the correct partition table.
-     */
+    
+    //UPDATE: Edit User and their Profile
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
@@ -111,9 +102,10 @@ class AdminUserController extends Controller
         $validated = $request->validate([
             'name'         => 'sometimes|string|max:255',
             'phone_number' => 'nullable|string|max:20',
-            'password'     => 'nullable|min:8', 
-            
-            // Unique check must ignore current user's ID
+            'password'     => 'nullable|min:8',
+            'status'       => 'sometimes|in:active,inactive,banned',
+
+            // id or email can't be changed
             'student_id'   => ['nullable', 'required_if:type,student', Rule::unique('users', 'login_id')->ignore($user->id)],
             'email'        => ['nullable', 'required_if:type,responder', 'email', Rule::unique('users', 'login_id')->ignore($user->id)],
 
@@ -123,15 +115,17 @@ class AdminUserController extends Controller
             'position'     => 'nullable|string',
         ]);
 
+        //Transaction
         return DB::transaction(function () use ($request, $user, $validated) {
             
             // 1. Update Main User Data
             $userData = [];
             if ($request->has('name')) $userData['name'] = $validated['name'];
             if ($request->has('phone_number')) $userData['phone_number'] = $validated['phone_number'];
-            if ($request->has('password')) $userData['password'] = Hash::make($validated['password']);
-            
-            // Handle Login ID change if provided
+            if ($request->has('password')) $userData['password'] = Hash::make($validated['password']);          
+            if ($request->has('status')) $userData['status'] = $validated['status'];
+
+            // Handle Login ID
             if ($user->role === 'student' && $request->has('student_id')) {
                 $userData['login_id'] = $validated['student_id'];
             } elseif ($user->role === 'responder' && $request->has('email')) {
@@ -156,15 +150,12 @@ class AdminUserController extends Controller
         });
     }
 
-    /**
-     * DELETE: Remove user
-     * Optimization: Cascade Delete in Migration handles the profile cleanup automatically.
-     */
+     //DELETE: Remove user
+
     public function destroy($id)
     {
         $user = User::findOrFail($id);
         
-        // 2. USE Auth::id() HERE
         // This checks if the ID of the user you are deleting matches the currently logged-in admin
         if ($user->id === Auth::id()) {
             return response()->json(['message' => 'Cannot delete your own account'], 403);

@@ -8,21 +8,20 @@ class Alert extends Model
 {
     protected $fillable = [
         'student_id',
-        'responder_id',    // Moved here
-        'student_name',    // Snapshot
-        'student_phone',   // Snapshot
+        'responder_id',    
+        'student_name',    
+        'student_phone',   
         'category',
         'severity',
         'description',
         'latitude',
         'longitude',
         'status',
-        'responded_at',    // Moved here
-        'arrived_at',      // Moved here
-        'resolved_at',     // Renamed from completed_at
+        'responded_at',    
+        'arrived_at',      
+        'resolved_at',     
     ];
 
-    // OPTIMIZATION: "Casts" automatically convert timestamps to Carbon objects
     protected $casts = [
         'latitude'     => 'float',
         'longitude'    => 'float',
@@ -31,19 +30,16 @@ class Alert extends Model
         'resolved_at'  => 'datetime',
     ];
 
-    // Relationship: Who called for help?
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
     }
 
-    // Relationship: Who accepted it?
     public function responder()
     {
         return $this->belongsTo(User::class, 'responder_id');
     }
 
-    // Relationship: The location trail
     public function locationHistory()
     {
         return $this->hasMany(LocationHistory::class);

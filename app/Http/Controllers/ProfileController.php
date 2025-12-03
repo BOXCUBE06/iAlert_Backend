@@ -8,17 +8,14 @@ use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
-    /**
-     * SHOW: Get the currently logged-in user's full profile
-     * Optimization: Uses Eager Loading to get data from both tables in 1 query.
-     */
+    
+     //SHOW: Get the currently logged-in user's full profile
     public function show(Request $request)
     {
         // 1. Get current User
         $user = $request->user();
 
-        // 2. Load the specific partition data based on role
-        // This avoids loading 'responderDetails' for a student (which would be null anyway)
+        // 2. Load the specific data based on role
         if ($user->role === 'student') {
             $user->load('studentDetails');
         } elseif ($user->role === 'responder') {
@@ -28,9 +25,8 @@ class ProfileController extends Controller
         return response()->json($user);
     }
 
-    /**
-     * UPDATE: Update self (Common info + Role-specific info)
-     */
+    
+     //UPDATE: Update self (Common info + Role-specific info)
     public function update(Request $request)
     {
         $user = $request->user();
@@ -61,9 +57,8 @@ class ProfileController extends Controller
         
         $user->save();
 
-        // 4. Update Partition Table (Role Specific)
+        // 4. Update Table (Role Specific)
         if ($user->role === 'student') {
-            // updateOrCreate ensures it works even if the details row was somehow missing
             $user->studentDetails()->updateOrCreate(
                 ['user_id' => $user->id],
                 $request->only(['department', 'year_level'])

@@ -13,37 +13,32 @@ return new class extends Migration
         Schema::create('alerts', function (Blueprint $table) {
             $table->id();
             
-            // --- RELATIONSHIPS ---
             $table->foreignId('student_id')->constrained('users');
             
-            // OPTIMIZATION: Move responder_id HERE. 
-            // We don't want a separate table. We want to know "Who accepted this?" instantly.
             $table->foreignId('responder_id')->nullable()->constrained('users');
 
-            // --- DE-NORMALIZATION (Snapshot) ---
-            // Store name/phone here so we don't need to JOIN the users table for the Map.
             $table->string('student_name'); 
             $table->string('student_phone'); 
 
-            // --- ALERT DETAILS ---
+            // ALERT DETAILS
             $table->string('category'); // Medical, Fire, Harassment
             $table->enum('severity', ['severe', 'moderate', 'mild']);
             $table->text('description')->nullable();
             
-            // --- LOCATION (Current Position) ---
+            // LOCATION (Current Position)
             $table->decimal('latitude', 10, 8);
             $table->decimal('longitude', 11, 8);
 
-            // --- STATUS & TIMESTAMPS ---
+            // STATUS and TIMESTAMPS
             // 'pending' -> 'accepted' -> 'arrived' -> 'resolved'
             $table->enum('status', ['pending', 'accepted', 'arrived', 'resolved', 'cancelled'])
                   ->default('pending')
-                  ->index(); // INDEX this! Admin queries "WHERE status = 'pending'" constantly.
+                  ->index();
 
-            $table->timestamp('created_at')->useCurrent(); // When student pressed button
-            $table->timestamp('responded_at')->nullable(); // When responder clicked "Accept"
-            $table->timestamp('arrived_at')->nullable();   // When responder clicked "I'm here"
-            $table->timestamp('resolved_at')->nullable();  // When finished
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('responded_at')->nullable();
+            $table->timestamp('arrived_at')->nullable();
+            $table->timestamp('resolved_at')->nullable();
             
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
         });

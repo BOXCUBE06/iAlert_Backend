@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class ActivityLog extends Model
 {
-    // Disable updated_at, logs should never be changed, only created
     public $timestamps = false; 
 
     protected $fillable = ['user_id', 'action', 'details','created_at'];

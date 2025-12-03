@@ -3,17 +3,12 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
+
 
 class NotificationController extends Controller
 {
-    /**
-     * Get unread notifications for the current user
-     */
     public function index(Request $request)
     {
-        /** @var \App\Models\User $user */
         $user = $request->user(); 
 
         $notifications = $user->notifications()
@@ -24,12 +19,11 @@ class NotificationController extends Controller
         return response()->json($notifications);
     }
 
-    /**
-     * Mark a single notification as read
-     */
+    
+     //Mark a single notification as read
+     
     public function markAsRead(Request $request, $id) // Added Request here
     {
-        /** @var \App\Models\User $user */
         $user = $request->user();
 
         $notification = $user->notifications()->findOrFail($id);
@@ -39,12 +33,12 @@ class NotificationController extends Controller
         return response()->json(['message' => 'Marked as read']);
     }
 
-    /**
-     * Mark ALL as read
-     */
+    
+    //Mark ALL as read
+     
     public function markAllAsRead(Request $request) // Added Request here
     {
-        /** @var \App\Models\User $user */
+    
         $user = $request->user();
 
         $user->notifications()

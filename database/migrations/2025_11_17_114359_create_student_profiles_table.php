@@ -16,7 +16,7 @@ return new class extends Migration
                   ->cascadeOnDelete();
             
             $table->string('department');
-            $table->tinyInteger('year_level'); // 1-4, tinyInteger is more space-efficient
+            $table->tinyInteger('year_level'); 
             
             $table->timestamps();
         });

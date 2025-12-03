@@ -14,12 +14,11 @@ return new class extends Migration
             // Link to the main alert
             $table->foreignId('alert_id')
                   ->constrained('alerts')
-                  ->cascadeOnDelete(); // If alert is deleted, history is gone too
+                  ->cascadeOnDelete();
             
             $table->decimal('latitude', 10, 8);
             $table->decimal('longitude', 11, 8);
-            
-            // OPTIMIZATION: Index this to sort the path quickly (ORDER BY created_at)
+
             $table->timestamp('created_at')->useCurrent()->index(); 
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
         });
