@@ -31,31 +31,36 @@ class AdminUserController extends Controller
         // Optimization: Eager Load relationships
         $users = $query->with(['studentDetails', 'responderDetails'])
                        ->orderBy('created_at', 'desc')
-                       ->paginate(15); 
+                       ->get(); 
 
         return response()->json($users);
-    }
+    } 
 
-     //CREATE: Add a new Student or Responder
+     // CREATE: Add a new Student or Responder
     public function store(Request $request)
     {
         $validated = $request->validate([
             'type'         => 'required|in:student,responder',
             'name'         => 'required|string|max:255',
-            'password'     => 'required|min:8',
-            'phone_number' => 'nullable|string|max:20',
             
-            // Conditional Validation
-            'student_id'   => 'required_if:type,student|unique:users,login_id',
-            'email'        => 'required_if:type,responder|email|unique:users,login_id',
+            // Password must be confirmed (frontend must send 'password_confirmati  on')
+            'password'     => 'required|string|min:7|confirmed', 
             
-            // Details
-            'department'   => 'nullable|required_if:type,student|string',
+            // Basic phone validation (allows +, -, spaces, and numbers)
+            'phone_number' => ['nullable', 'string', 'max:11', 'regex:/^([0-9\s\-\+\(\)]*)$/'],
+            
+            'status'       => 'nullable|in:active,inactive,banned',
+
+            // Conditional Validation - Identity
+            'student_id'   => 'required_if:type,student|string|max:50|unique:users,login_id',
+            'email'        => 'required_if:type,responder|email|max:255|unique:users,login_id',
+            
+            // Conditional Validation - Details
+            'department'   => 'nullable|required_if:type,student|string|max:100',
             'year_level'   => 'nullable|required_if:type,student|integer|between:1,4',
-            'position'     => 'nullable|required_if:type,responder|string',
+            'position'     => 'nullable|required_if:type,responder|string|max:100',
         ]);
 
-        //Transaction
         return DB::transaction(function () use ($validated) {
             $loginId = $validated['type'] === 'student' ? $validated['student_id'] : $validated['email'];
 
@@ -66,6 +71,7 @@ class AdminUserController extends Controller
                 'name'         => $validated['name'],
                 'phone_number' => $validated['phone_number'] ?? null,
                 'role'         => $validated['type'],
+                'status'       => $validated['status'] ?? 'active', // Default to active if not sent
             ]);
 
             // 2. Create Details based on type
@@ -82,6 +88,9 @@ class AdminUserController extends Controller
                 ]);
             }
 
+            // OPTIONAL: Log the action manually (if not handled by Database Trigger)
+            // \App\Models\ActivityLog::create([...]); 
+
             return response()->json(['message' => 'User created successfully', 'user' => $user], 201);
         });
     }
@@ -95,37 +104,57 @@ class AdminUserController extends Controller
 
     
     //UPDATE: Edit User and their Profile
+    // UPDATE: Edit User and their Profile
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
 
         $validated = $request->validate([
             'name'         => 'sometimes|string|max:255',
-            'phone_number' => 'nullable|string|max:20',
-            'password'     => 'nullable|min:8',
+            
+            // Password change is optional, but if provided, must be confirmed and min 8 chars
+            'password'     => 'nullable|string|min:7|confirmed', 
+            
+            'phone_number' => ['nullable', 'string', 'max:20', 'regex:/^([0-9\s\-\+\(\)]*)$/'],
             'status'       => 'sometimes|in:active,inactive,banned',
 
-            // id or email can't be changed
-            'student_id'   => ['nullable', 'required_if:type,student', Rule::unique('users', 'login_id')->ignore($user->id)],
-            'email'        => ['nullable', 'required_if:type,responder', 'email', Rule::unique('users', 'login_id')->ignore($user->id)],
+            // Unique Check: "Ignore this user's own ID" so it doesn't fail if they keep their current ID
+            'student_id'   => [
+                'nullable', 
+                'required_if:type,student', 
+                'string', 
+                'max:50',
+                Rule::unique('users', 'login_id')->ignore($user->id)
+            ],
+            'email'        => [
+                'nullable', 
+                'required_if:type,responder', 
+                'email', 
+                'max:255',
+                Rule::unique('users', 'login_id')->ignore($user->id)
+            ],
 
-            // Details
-            'department'   => 'nullable|string',
+            // Details Validation
+            'department'   => 'nullable|string|max:100',
             'year_level'   => 'nullable|integer|between:1,4',
-            'position'     => 'nullable|string',
+            'position'     => 'nullable|string|max:100',
         ]);
 
-        //Transaction
         return DB::transaction(function () use ($request, $user, $validated) {
             
             // 1. Update Main User Data
             $userData = [];
+            
             if ($request->has('name')) $userData['name'] = $validated['name'];
             if ($request->has('phone_number')) $userData['phone_number'] = $validated['phone_number'];
-            if ($request->has('password')) $userData['password'] = Hash::make($validated['password']);          
             if ($request->has('status')) $userData['status'] = $validated['status'];
-
-            // Handle Login ID
+            
+            // Only hash and update password if a new one was actually sent
+            if ($request->filled('password')) {
+                $userData['password'] = Hash::make($validated['password']);
+            }
+            
+            // Handle Login ID change if provided
             if ($user->role === 'student' && $request->has('student_id')) {
                 $userData['login_id'] = $validated['student_id'];
             } elseif ($user->role === 'responder' && $request->has('email')) {
@@ -146,7 +175,10 @@ class AdminUserController extends Controller
                 ]);
             }
 
-            return response()->json(['message' => 'User updated successfully', 'user' => $user->fresh(['studentDetails', 'responderDetails'])]);
+            return response()->json([
+                'message' => 'User updated successfully', 
+                'user' => $user->fresh(['studentDetails', 'responderDetails'])
+            ]);
         });
     }
 

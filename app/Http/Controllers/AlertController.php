@@ -116,12 +116,15 @@ class AlertController extends Controller
     {
         $query = Alert::query();
 
-        // 1. FILTER BY STATUSS
-        if ($request->has('status')) {
-            if ($request->status !== 'all') {
-                $query->where('status', $request->status);
-            }
+        // FIX 1: Eager Load Responder Name (Avoids N+1 problem)
+        // This allows the frontend to show "Accepted By: Officer Name"
+        $query->with('responder:id,name');
+
+        // 1. FILTER BY STATUS
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
         } else {
+            // Default behavior (Map View): Show only active
             $query->whereIn('status', ['pending', 'accepted', 'arrived']);
         }
 
@@ -135,14 +138,10 @@ class AlertController extends Controller
             $query->whereDate('created_at', $request->date);
         }
 
-        // 4. SORTING newest first
+        // 4. SORTING (Fix 2: Ensure Newest First)
         $query->orderBy('created_at', 'desc');
 
-        // 5. PAGINATION 
-        if ($request->status === 'resolved' || $request->status === 'cancelled') {
-            return response()->json($query->paginate(20));
-        }
-
+        // 5. RETURN DATA (Direct List)
         return response()->json($query->get());
     }
 
@@ -213,4 +212,23 @@ class AlertController extends Controller
 
         return response()->json(['message' => 'Alert resolved', 'alert' => $alert]);
     }
+
+    public function cancel(Request $request, $id)
+{
+    $alert = Alert::findOrFail($id);
+
+    // Security: Only assigned responder or admin
+    if (Auth::user()->role !== 'admin' && $alert->responder_id !== Auth::id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    $alert->update([
+        'status'      => 'cancelled', // <--- Explicitly set to Cancelled
+        'resolved_at' => now(), // We still set this so it counts as "closed"
+    ]);
+
+    // Note: You might need to add a Trigger logic for 'cancelled' if you want it logged specifically
+    
+    return response()->json(['message' => 'Alert cancelled', 'alert' => $alert]);
+}
 }

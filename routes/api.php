@@ -9,6 +9,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\NotificationController; 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\ResponderController;
 
 
 
@@ -33,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::get('/notifications/history', [NotificationController::class, 'history']);
 
     // STUDENT ROUTES
     Route::middleware('role:student')->group(function () {
@@ -52,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/alerts/{id}/accept', [AlertController::class, 'accept']);
         Route::post('/alerts/{id}/arrived', [AlertController::class, 'arrived']);
         Route::post('/alerts/{id}/resolve', [AlertController::class, 'resolve']);
+        Route::post('/alerts/{id}/cancel', [AlertController::class, 'cancel']);
     });
 
     // ADMIN ROUTES
@@ -66,4 +69,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/alerts', [AlertController::class, 'index']);
     });
 
-});
+    Route::post('/responder/heartbeat', [ResponderController::class, 'updateHeartbeat']);
+
+    // 2. LIVE MAP DATA (Get list of active responders)
+    // Used by: Student App -> StudentService (to show blue pins)
+    Route::get('/student/map/responders', [ResponderController::class, 'getActiveResponders']);
+
+}); 

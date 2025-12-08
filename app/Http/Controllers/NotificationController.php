@@ -19,6 +19,17 @@ class NotificationController extends Controller
         return response()->json($notifications);
     }
 
+    public function history(Request $request)
+    {
+        $user = $request->user(); 
+
+        $notifications = $user->notifications()
+                              ->orderBy('created_at', 'desc')
+                              ->get();
+
+        return response()->json($notifications);
+    }
+
     
      //Mark a single notification as read
      

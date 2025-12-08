@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\SoftDeletes; // ✅ Soft Deletes Import
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, Notifiable, SoftDeletes; // ✅ Use Soft Deletes
 
     protected $fillable = [
         'login_id',
@@ -16,13 +17,21 @@ class User extends Authenticatable
         'phone_number',
         'password',
         'role',
-        'status',
+        'status', // ✅ Added for Banning logic
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
     ];
+
+    // Optional: Casts help Laravel handle data types automatically
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    // --- RELATIONSHIPS ---
 
     public function studentDetails()
     {
@@ -44,8 +53,14 @@ class User extends Authenticatable
         return $this->hasMany(Alert::class, 'responder_id');
     }
 
-public function notifications()
-{
-    return $this->hasMany(Notification::class);
-}
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    // ✅ ADD THIS MISSING ONE:
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
 }

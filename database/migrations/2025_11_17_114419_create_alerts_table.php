@@ -13,9 +13,9 @@ return new class extends Migration
         Schema::create('alerts', function (Blueprint $table) {
             $table->id();
             
-            $table->foreignId('student_id')->constrained('users');
+            $table->foreignId('student_id')->constrained('users')->cascadeOnDelete();;
             
-            $table->foreignId('responder_id')->nullable()->constrained('users');
+            $table->foreignId('responder_id')->nullable()->constrained('users')->cascadeOnDelete();;
 
             $table->string('student_name'); 
             $table->string('student_phone'); 
